@@ -1079,6 +1079,14 @@ _TYPESAFE = _static([
     ("jev-1.13.0", ["decision"]),
 ])
 
+_NVIDIA = [
+    RawModel(
+        id="nvidia/nemotron-3.5-embed-8b",
+        capabilities=["embedding"],
+        is_multimodal=True,
+    ),
+]
+
 
 def build_registry() -> dict[str, DiscoveryStrategy]:
     return {
@@ -1090,6 +1098,7 @@ def build_registry() -> dict[str, DiscoveryStrategy]:
         "openRouter": OpenRouterStrategy(),
         "cohere": CohereStrategy(),
         "mistral": MistralStrategy(),
+        "nvidia": _StaticStrategy(_NVIDIA),
         "together": TogetherStrategy(),
         "fireworks": FireworksStrategy(),
         "jinaAI": JinaStrategy(),

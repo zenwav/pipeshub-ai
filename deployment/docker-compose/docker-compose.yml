@@ -256,6 +256,11 @@ services:
       - MAX_AUTH_REQUESTS_PER_MINUTE=${MAX_AUTH_REQUESTS_PER_MINUTE:-10}
       - ADDRESS_RATE_LIMIT_PER_MINUTE=${ADDRESS_RATE_LIMIT_PER_MINUTE:-60}
       - TRUST_PROXY=${TRUST_PROXY:-}
+      # NVIDIA NIM embeddings: requests a minute shared by every service in this container (default 36 on
+      # NVIDIA Build, none for a self-hosted NIM; 0 turns pacing off), and how many of them indexing leaves
+      # for searches (default 6).
+      - NVIDIA_NIM_RPM=${NVIDIA_NIM_RPM:-}
+      - NVIDIA_NIM_INTERACTIVE_RESERVE_RPM=${NVIDIA_NIM_INTERACTIVE_RESERVE_RPM:-}
 
       # Security
       - HIDE_SECRET_CONFIG=${HIDE_SECRET_CONFIG:-false}

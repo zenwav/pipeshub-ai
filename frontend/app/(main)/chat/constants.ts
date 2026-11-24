@@ -12,6 +12,7 @@ export const PROVIDER_FRIENDLY_NAMES: Record<string, string> = {
   google: 'Google',
   gemini: 'Gemini',
   mistral: 'Mistral',
+  nvidia: 'NVIDIA NIM',
   meta: 'Meta',
   cohere: 'Cohere',
   groq: 'Groq',

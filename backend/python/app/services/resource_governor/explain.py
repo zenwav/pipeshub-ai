@@ -116,7 +116,7 @@ _DEPENDENCY_ALIASES = {
 }
 EMBEDDING_PROVIDER_NAMES = frozenset(
     {"anthropic", "bedrock", "azureai", "azureopenai", "cohere", "default", "fireworks", "gemini", "huggingface",
-     "jinaai", "litellmproxy", "lmstudio", "mistral", "ollama", "openai", "openaicompatible", "openrouter",
+     "jinaai", "litellmproxy", "lmstudio", "mistral", "nvidia", "ollama", "openai", "openaicompatible", "openrouter",
      "sentencetransformers", "together", "vertexai", "voyage"}
 )  # lower-cased ``EmbeddingProvider`` values (a test pins the list to the enum)
 

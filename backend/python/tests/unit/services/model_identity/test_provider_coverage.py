@@ -56,7 +56,7 @@ def test_a_disabled_connection_installs_nothing(provider) -> None:
 
 
 @pytest.mark.parametrize(
-    "provider", ["openAI", "litellmProxy", "openAICompatible", "azureOpenAI", "ollama"]
+    "provider", ["openAI", "litellmProxy", "openAICompatible", "azureOpenAI", "ollama", "nvidia"]
 )
 def test_embedding_clients_carry_the_hook(provider) -> None:
     assert provider in {p.value for p in EmbeddingProvider}
@@ -68,7 +68,7 @@ def test_embedding_clients_carry_the_hook(provider) -> None:
 
 
 def test_every_embedding_provider_is_classified() -> None:
-    known = {"openAI", "litellmProxy", "openAICompatible", "azureOpenAI", "ollama"}
+    known = {"openAI", "litellmProxy", "openAICompatible", "azureOpenAI", "ollama", "nvidia"}
     unclassified = {p.value for p in EmbeddingProvider} - known - NO_HTTPX_EMBEDDING
     # These build httpx-based clients but need a live endpoint or extra fields
     # to construct offline; they go through the same funnel as the five above.

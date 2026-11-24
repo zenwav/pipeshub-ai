@@ -148,6 +148,7 @@ from app.utils.aimodels import (
     get_default_embedding_model,
     get_embedding_model,
     is_local_cpu_embedding_provider,
+    parse_embedding_dimensions,
 )
 from app.utils.embedding_gate import GateFailFast
 from app.utils.embedding_retry import (
@@ -1391,6 +1392,7 @@ class VectorStore(Transformer):
         self.model_name = None
         self.embedding_provider = None
         self.embedding_size: int | None = None
+        self.configured_dimensions: int | None = None
         self.is_multimodal_embedding = False
         self.region_name = None
         self.aws_access_key_id = None
@@ -2468,6 +2470,11 @@ class VectorStore(Transformer):
         self.dense_embeddings = dense_embeddings
         self.embedding_provider = provider
         self.embedding_size = embedding_size
+        self.configured_dimensions = (
+            parse_embedding_dimensions(configuration.get("dimensions"))
+            if configuration
+            else None
+        )
         self.api_key = (
             configuration.get("apiKey") if configuration and "apiKey" in configuration else None
         )
@@ -2666,6 +2673,7 @@ class VectorStore(Transformer):
             aws_secret_access_key=self.aws_secret_access_key,
             base_url=getattr(self, "base_url", None),
             embedding_size=self.embedding_size,
+            dimensions=getattr(self, "configured_dimensions", None),
             dense_embeddings=self.dense_embeddings,
             normalize_fn=self._normalize_image_to_base64,
             logger=self.logger,
