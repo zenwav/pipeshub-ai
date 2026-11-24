@@ -81,6 +81,7 @@ export type EmbeddingProviderType =
   | 'cohere'
   | 'gemini'
   | 'mistral'
+  | 'nvidia'
   | 'voyage'
   | 'jinaAI'
   | 'together'

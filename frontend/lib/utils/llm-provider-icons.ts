@@ -26,6 +26,7 @@ const LLM_PROVIDER_ICON_FILE: Record<string, string> = {
   xai: 'xai.svg',
   fireworks: 'fireworks-color.svg',
   mistral: 'mistral-color.svg',
+  nvidia: 'nvidia-color.svg',
   sentenceTransformers: 'sentence-transformers.png',
   jinaAI: 'jina.svg',
   voyage: 'voyage-color.svg',

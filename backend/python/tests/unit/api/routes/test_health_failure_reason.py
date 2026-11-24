@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.api.routes.health import (
     _http_exception_response,
     _is_settings_failure,
+    _llm_health_check_needs_outbound,
     _model_setup_failed_response,
 )
 
@@ -238,3 +239,52 @@ async def test_provider_text_with_a_public_address_or_a_time_is_kept() -> None:
     reason = "Retry after 12:30:45 UTC; status page at 2606:4700::1111."
     _, body = await _check(_openai_error(openai.InternalServerError, 500, reason))
     assert body["message"].endswith(f'said: "{reason}"')
+
+
+async def test_nvidia_official_endpoints_quote_redacted_vendor_reason() -> None:
+    nv_key = "nvapi-secret-token-value-1234567890"
+    reason = f"'input_type' parameter is required for key {nv_key}"
+    err = _openai_error(openai.BadRequestError, 400, reason)
+    for endpoint in ("", "https://integrate.api.nvidia.com/v1", "https://ai.api.nvidia.com/v1"):
+        config = {
+            "provider": "nvidia",
+            "configuration": {
+                "model": "nvidia/nemotron-3.5-embed-8b",
+                "apiKey": nv_key,
+                **({"endpoint": endpoint} if endpoint else {}),
+            },
+        }
+        response = await _model_setup_failed_response(
+            "embedding model", config, "nvidia/nemotron-3.5-embed-8b", err,
+        )
+        body = json.loads(response.body)
+        assert response.status_code == 400
+        assert 'NVIDIA NIM said: "' in body["message"]
+        assert "'input_type' parameter is required" in body["message"]
+        assert nv_key not in body["message"]
+        assert "reasoning effort" not in body["message"]
+
+
+async def test_nvidia_custom_endpoint_keeps_server_text_in_log() -> None:
+    err = _openai_error(openai.BadRequestError, 400, "internal nim gpu worker error")
+    for endpoint in ("https://nim.internal.example/v1", "https://evil-nvidia.com/v1"):
+        config = {
+            "provider": "nvidia",
+            "configuration": {
+                "model": "nvidia/nemotron-3.5-embed-8b",
+                "apiKey": "nvapi-k",
+                "endpoint": endpoint,
+            },
+        }
+        response = await _model_setup_failed_response(
+            "embedding model", config, "nvidia/nemotron-3.5-embed-8b", err,
+        )
+        body = json.loads(response.body)
+        assert "said:" not in body["message"], endpoint
+        assert "internal nim gpu" not in body["message"], endpoint
+
+
+def test_nvidia_local_endpoint_does_not_require_outbound_internet() -> None:
+    assert _llm_health_check_needs_outbound("nvidia", {"endpoint": "http://localhost:8000/v1"}) is False
+    assert _llm_health_check_needs_outbound("nvidia", {}) is True
+    assert _llm_health_check_needs_outbound("nvidia", {"endpoint": "https://integrate.api.nvidia.com/v1"}) is True

@@ -24,6 +24,10 @@ class MultimodalProviderConfig:
     # one, or every point they return is rejected by
     # ``VectorStore._build_image_points``'s dimension check.
     embedding_size: int | None = None
+    # Optional explicit output dimension requested by the admin (Matryoshka
+    # providers such as NVIDIA NIM). Kept distinct from ``embedding_size`` so
+    # requests omit ``dimensions`` when the admin left it blank.
+    dimensions: int | None = None
     # LangChain Embeddings instance for providers that already have a working
     # LangChain integration capable of embedding raw base64 image strings
     # (currently Voyage's ``embed_documents``/``aembed_documents``).

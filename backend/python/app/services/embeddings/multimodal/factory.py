@@ -16,6 +16,7 @@ from app.services.embeddings.multimodal.config import MultimodalProviderConfig
 from app.services.embeddings.multimodal.gemini_provider import GeminiMultimodalProvider
 from app.services.embeddings.multimodal.interface import IMultimodalEmbeddingProvider
 from app.services.embeddings.multimodal.jina_provider import JinaMultimodalProvider
+from app.services.embeddings.multimodal.nvidia_provider import NvidiaMultimodalProvider
 from app.services.embeddings.multimodal.ollama_provider import OllamaMultimodalProvider
 from app.services.embeddings.multimodal.openai_compat_provider import (
     OpenAICompatMultimodalProvider,
@@ -81,6 +82,14 @@ _PROVIDER_BUILDERS: dict[str, Callable[[MultimodalProviderConfig], IMultimodalEm
         normalize_fn=config.normalize_fn,
         logger=config.logger,
         sdk_retries=config.sdk_retries,
+    ),
+    EmbeddingProvider.NVIDIA.value: lambda config: NvidiaMultimodalProvider(
+        api_key=config.api_key,
+        model_name=config.model_name,
+        base_url=config.base_url,
+        dimensions=config.dimensions,
+        normalize_fn=config.normalize_fn,
+        logger=config.logger,
     ),
     EmbeddingProvider.OLLAMA.value: lambda config: OllamaMultimodalProvider(
         base_url=config.base_url,

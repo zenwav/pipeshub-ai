@@ -197,3 +197,39 @@ def test_embedding_start_failure_points_to_ai_models() -> None:
     assert EMBEDDING_UNAVAILABLE_MESSAGE == (
         "The embedding model couldn't start. Check it in Workspace > AI Models, then try again."
     )
+
+
+def test_embedding_rejected_settings_gives_embedding_hint() -> None:
+    message = _rejected_settings_message(
+        "invalid_request",
+        "embedding model",
+        {"provider": "openAICompatible", "configuration": {}},
+        "nvidia/nemotron-3.5-embed-8b",
+    )
+    assert "refused these embedding model settings" in message
+    assert "output dimensions or multimodal support" in message
+    assert "reasoning effort" not in message
+    assert "context length" not in message
+
+
+def test_chat_and_decision_rejected_settings_keep_the_llm_hint() -> None:
+    for kind in ("chat model", "decision model"):
+        message = _rejected_settings_message(
+            "invalid_request",
+            kind,
+            {"provider": "openAI", "configuration": {}},
+            "gpt-5",
+        )
+        assert "reasoning effort or context length" in message
+
+
+def test_other_non_llm_rejected_settings_omit_the_llm_hint() -> None:
+    for kind in ("image model", "speech model", "speech-to-text model"):
+        message = _rejected_settings_message(
+            "invalid_request",
+            kind,
+            {"provider": "openAI", "configuration": {}},
+            "test-model",
+        )
+        assert f"refused these {kind} settings" in message
+        assert "reasoning effort" not in message

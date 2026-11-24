@@ -42,7 +42,7 @@ def sdk_retries(model: Any) -> int:  # noqa: ANN401
     openai_paths = ("root_client.max_retries", "root_async_client.max_retries", "client._client.max_retries",
                     "async_client._client.max_retries")
     if name in {"ChatOpenAI", "AzureChatOpenAI", "ChatXAI", "ChatTogether", "ChatGroq", "OpenAIEmbeddings",
-                "AzureOpenAIEmbeddings", "TogetherEmbeddings"}:
+                "AzureOpenAIEmbeddings", "TogetherEmbeddings", "NvidiaEmbeddings"}:
         return _all(model, openai_paths)
     if name == "ChatAnthropic":
         return _all(model, ("_client.max_retries", "_async_client.max_retries"))

@@ -44,7 +44,7 @@ def _config(provider: str, **extra: Any) -> MultimodalProviderConfig:  # noqa: A
 @pytest.fixture
 def one_attempt(monkeypatch: pytest.MonkeyPatch) -> None:
     gateway = EmbeddingGateway(retry_budget=RetryBudget(), max_attempts=1)
-    for name in ("cohere", "gemini", "bedrock", "voyage"):
+    for name in ("cohere", "gemini", "bedrock", "voyage", "nvidia"):
         monkeypatch.setattr(f"app.services.embeddings.multimodal.{name}_provider.get_embedding_gateway", lambda: gateway)
 
 
@@ -90,6 +90,36 @@ async def test_bedrock_hands_the_wait_over(monkeypatch: pytest.MonkeyPatch, one_
     provider = MultimodalEmbeddingFactory.create(_config("bedrock"))
     with pytest.raises(EmbeddingRateLimited) as raised:
         await provider.embed_images([IMAGE])  # type: ignore[union-attr]
+    assert raised.value.retry_after == 600.0
+
+
+async def test_nvidia_hands_the_wait_over(monkeypatch: pytest.MonkeyPatch, one_attempt: None) -> None:
+    import base64
+    import io
+
+    import httpx
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (2, 2), color=(1, 2, 3)).save(buf, format="PNG")
+    png_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+
+    def make_client(_base_url: str, *, timeout: float = 60.0) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda _req: httpx.Response(429, headers={"retry-after": "600"})
+            ),
+            timeout=timeout,
+        )
+
+    monkeypatch.setenv("NVIDIA_NIM_RPM", "0")
+    monkeypatch.setattr(
+        "app.services.embeddings.multimodal.nvidia_provider.guarded_async_client",
+        make_client,
+    )
+    provider = MultimodalEmbeddingFactory.create(_config("nvidia"))
+    with pytest.raises(EmbeddingRateLimited) as raised:
+        await provider.embed_images([png_b64])  # type: ignore[union-attr]
     assert raised.value.retry_after == 600.0
 
 

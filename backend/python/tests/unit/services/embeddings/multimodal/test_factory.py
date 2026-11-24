@@ -2,12 +2,16 @@
 
 from unittest.mock import MagicMock
 
-from app.services.embeddings.multimodal.bedrock_provider import BedrockMultimodalProvider
+from app.config.constants.ai_models import NVIDIA_NIM_BASE_URL
+from app.services.embeddings.multimodal.bedrock_provider import (
+    BedrockMultimodalProvider,
+)
 from app.services.embeddings.multimodal.cohere_provider import CohereMultimodalProvider
 from app.services.embeddings.multimodal.config import MultimodalProviderConfig
 from app.services.embeddings.multimodal.factory import MultimodalEmbeddingFactory
 from app.services.embeddings.multimodal.gemini_provider import GeminiMultimodalProvider
 from app.services.embeddings.multimodal.jina_provider import JinaMultimodalProvider
+from app.services.embeddings.multimodal.nvidia_provider import NvidiaMultimodalProvider
 from app.services.embeddings.multimodal.ollama_provider import OllamaMultimodalProvider
 from app.services.embeddings.multimodal.openai_compat_provider import (
     OpenAICompatMultimodalProvider,
@@ -48,6 +52,19 @@ class TestMultimodalEmbeddingFactory:
         config = MultimodalProviderConfig(provider=EmbeddingProvider.OLLAMA.value)
         provider = MultimodalEmbeddingFactory.create(config)
         assert isinstance(provider, OllamaMultimodalProvider)
+
+    def test_nvidia_provider(self) -> None:
+        config = MultimodalProviderConfig(
+            provider=EmbeddingProvider.NVIDIA.value,
+            api_key="nvapi-k",
+            model_name="nvidia/nemotron-3.5-embed-8b",
+            dimensions=1024,
+        )
+        provider = MultimodalEmbeddingFactory.create(config)
+        assert isinstance(provider, NvidiaMultimodalProvider)
+        assert provider.provider_name == EmbeddingProvider.NVIDIA.value
+        assert provider.base_url == NVIDIA_NIM_BASE_URL
+        assert provider.dimensions == 1024
 
     def test_openai_compatible_provider(self) -> None:
         config = MultimodalProviderConfig(

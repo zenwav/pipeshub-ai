@@ -30,6 +30,7 @@ from app.services.model_identity.runtime import call_scope
 from app.services.model_identity.workload import Workload
 from app.services.vector_db.collections import CollectionType
 from app.utils.aimodels import (
+    EmbeddingProvider,
     ImageGenerationProvider,
     LLMProvider,
     STTProvider,
@@ -43,9 +44,11 @@ from app.utils.aimodels import (
     iter_model_names,
     model_default_reasoning_effort,
     openai_async_client_kwargs,
+    parse_embedding_dimensions,
     require_public_endpoint,
 )
 from app.utils.log_redaction import redact_error_for_log
+from app.utils.nvidia_embeddings import is_nvidia_hosted_endpoint
 from app.utils.openai_hosts import (
     endpoint_path_problem,
     is_openai_api_url,
@@ -140,6 +143,7 @@ def _llm_health_check_needs_outbound(provider: str, configuration: dict[str, Any
     if provider in (
         LLMProvider.OPENAI_COMPATIBLE.value,
         LLMProvider.LITELLM_PROXY.value,
+        EmbeddingProvider.NVIDIA.value,
     ):
         endpoint = configuration.get("endpoint") or configuration.get("baseUrl") or ""
         return not _endpoint_is_local(str(endpoint))
@@ -290,7 +294,7 @@ _PROVIDER_REASON_MAX_CHARS = 300
 _CREDENTIAL_NAME_PARTS = ("key", "secret", "token", "password", "credential")
 # Providers whose errors come from the vendor's own public API, keyed as `_normalize_provider_key` writes them.
 _HOSTED_PROVIDER_KEYS = frozenset(
-    {"openai", "azureopenai", "azureai", "anthropic", "gemini", "vertexai", "bedrock"}
+    {"openai", "azureopenai", "azureai", "anthropic", "gemini", "vertexai", "bedrock", "nvidia"}
 )
 # The SDKs those providers answer through; an exception from any other package is not their answer.
 _PROVIDER_SDK_PACKAGES = ("openai", "anthropic", "google", "botocore", "azure")
@@ -330,6 +334,8 @@ def _answers_from_vendor(provider_key: str, configuration: object) -> bool:
     endpoint = endpoint.strip()
     if provider_key == "openai":
         return is_openai_api_url(endpoint)
+    if provider_key == "nvidia":
+        return is_nvidia_hosted_endpoint(endpoint)
     if provider_key in ("azureopenai", "azureai"):
         try:
             host = (urlparse(endpoint if "//" in endpoint else f"//{endpoint}").hostname or "").rstrip(".")
@@ -484,9 +490,19 @@ def _rejected_settings_message(
             "Check the model name (or deployment name) and the endpoint address "
             "in Workspace > AI Models, then try again."
         )
+    if kind in ("chat model", "decision model"):
+        return (
+            f"{provider} refused these {kind} settings. Check the model name and its options "
+            "(such as reasoning effort or context length), then try again."
+        )
+    if kind == "embedding model":
+        return (
+            f"{provider} refused these {kind} settings. Check the model name and its options "
+            "(such as output dimensions or multimodal support), then try again."
+        )
     return (
-        f"{provider} refused these {kind} settings. Check the model name and its options "
-        "(such as reasoning effort or context length), then try again."
+        f"{provider} refused these {kind} settings. Check the model name and its options, "
+        "then try again."
     )
 
 
@@ -1843,6 +1859,7 @@ async def _probe_image_embedding(
                 aws_access_key_id=configuration.get("awsAccessKeyId"),
                 aws_secret_access_key=configuration.get("awsSecretAccessKey"),
                 embedding_size=text_dimension,
+                dimensions=parse_embedding_dimensions(configuration.get("dimensions")),
                 logger=logger,
             )
         )
@@ -1976,8 +1993,10 @@ async def perform_embedding_health_check(
                 # A provider that silently ignores a `dimensions` override would
                 # otherwise build a collection of the wrong width, discovered only
                 # when the first query returns nothing.
-                requested = embedding_config.get("configuration", {}).get("dimensions")
-                if isinstance(requested, int) and requested > 0 and requested != embedding_dimension:
+                requested = parse_embedding_dimensions(
+                    embedding_config.get("configuration", {}).get("dimensions")
+                )
+                if requested is not None and requested != embedding_dimension:
                     return _config_error(
                         f"Model ignored the requested dimensions: asked for {requested}, "
                         f"got {embedding_dimension}",

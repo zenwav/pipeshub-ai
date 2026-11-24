@@ -135,6 +135,7 @@ class EmbeddingProvider(Enum):
     LITELLM_PROXY = "litellmProxy"
     LM_STUDIO = "lmStudio"
     MISTRAL = "mistral"
+    NVIDIA = "nvidia"
     OLLAMA = "ollama"
     OPENAI = "openAI"
     OPENAI_COMPATIBLE = "openAICompatible"
@@ -157,6 +158,7 @@ LOCAL_CPU_EMBEDDING_PROVIDERS = frozenset({
 SELF_HOSTABLE_EMBEDDING_PROVIDERS = frozenset({
     EmbeddingProvider.LITELLM_PROXY.value,
     EmbeddingProvider.LM_STUDIO.value,
+    EmbeddingProvider.NVIDIA.value,
     EmbeddingProvider.OLLAMA.value,
     EmbeddingProvider.OPENAI_COMPATIBLE.value,
 })
@@ -589,6 +591,22 @@ def is_multimodal_llm(config: dict[str, Any]) -> bool:
     )
 
 
+def parse_embedding_dimensions(raw: object) -> int | None:
+    """Parse an optional positive integer embedding dimension override."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, str):
+        raw = raw.strip()
+        if not raw:
+            return None
+    try:
+        parsed = int(raw)  # type: ignore[arg-type]
+    except (ValueError, TypeError):
+        logger.warning("Non-numeric dimensions value ignored: %r", raw)
+        return None
+    return parsed if parsed > 0 else None
+
+
 def _set_embedding_dimensions_kwarg(
     kwargs: Dict[str, Any],
     dimensions: int | None,
@@ -716,13 +734,7 @@ def _get_embedding_model_impl(
 
     logger.debug(f"Getting embedding model: provider={provider}, model_name={model_name}")
 
-    raw_dims = configuration.get("dimensions")
-    dimensions: int | None = None
-    if raw_dims not in (None, "", 0):
-        try:
-            dimensions = int(raw_dims)
-        except (ValueError, TypeError):
-            logger.warning(f"Non-numeric dimensions value ignored: {raw_dims!r}")
+    dimensions = parse_embedding_dimensions(configuration.get("dimensions"))
 
     if provider == EmbeddingProvider.AZURE_AI.value:
         from langchain_openai.embeddings import OpenAIEmbeddings
@@ -970,6 +982,23 @@ def _get_embedding_model_impl(
         )
         _set_embedding_dimensions_kwarg(vertex_emb_kwargs, dimensions, key="output_dimensionality")
         return GoogleGenerativeAIEmbeddings(**vertex_emb_kwargs)
+
+    elif provider == EmbeddingProvider.NVIDIA.value:
+        from app.utils.nvidia_embeddings import (
+            NvidiaEmbeddings,
+            normalize_nvidia_base_url,
+        )
+
+        nvidia_endpoint = normalize_nvidia_base_url(configuration.get("endpoint"))
+        require_allowed_endpoint(nvidia_endpoint)
+        nvidia_kwargs: dict[str, Any] = {
+            "model": model_name,
+            "api_key": configuration["apiKey"],
+            "base_url": nvidia_endpoint,
+        }
+        _set_embedding_dimensions_kwarg(nvidia_kwargs, dimensions)
+        _set_openai_client_limits_kwargs(nvidia_kwargs, provider, nvidia_endpoint)
+        return _guard_clients(NvidiaEmbeddings(**nvidia_kwargs), _OPENAI_RESOURCE_CLIENTS, nvidia_endpoint)
 
     raise ValueError(f"Unsupported embedding config type: {provider}")
 
